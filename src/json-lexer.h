@@ -5,10 +5,10 @@
 #include <variant>
 #include <vector>
 
-enum JsonTokenType {
+enum class JsonTokenType {
 	OBJECT_START, // '{'
 	OBJECT_END,   // '}'
-	ARRAY_START,  //'['
+	ARRAY_START,  // '['
 	ARRAY_END,    // ']'
 	STRING,       // '"string"'
 	NUMBER,       // '1.23'
@@ -21,3 +21,5 @@ struct JsonToken {
 	JsonTokenType type;
 	std::variant<std::string, double> value;
 };
+
+std::vector<JsonToken> tokenizeJson(std::istream &jsonStream);

@@ -13,7 +13,7 @@ static unsigned char charToHex(char c) {
 		return 10 + (c - 'a');
 	}
 
-	throw "JSON Error: bad hex digit";
+	throw "JSON error: bad hex digit";
 }
 
 static std::string parseJsonString(std::istream &jsonStream) {
@@ -21,11 +21,13 @@ static std::string parseJsonString(std::istream &jsonStream) {
 	unsigned short hexNumber;
 	char c;
 
-	while (jsonStream >> c) {
+	while (jsonStream.get(c)) {
 		if (c == '\"') {
 			break;
 		}
 		if (c == '\\') {
+			jsonStream.get(c);
+
 			switch (c) {
 			case '\"':
 			case '\\':
@@ -50,12 +52,16 @@ static std::string parseJsonString(std::istream &jsonStream) {
 			case 'u':
 				hexNumber = 0;
 				for (int i = 0; i < 4; i++) {
-					jsonStream >> c;
-					hexNumber = (hexNumber << 8) + charToHex(c);
+					jsonStream.get(c);
+					hexNumber = (hexNumber << 4) + charToHex(c);
 				}
+				if (hexNumber >= 0x80) {
+					throw "Non-ASCII hex string escapes are not supported.";
+				}
+				resultingString.push_back((char) hexNumber);
 				break;
 			default:
-				throw "JSON Error: bad escape char";
+				throw "JSON error: bad escape char";
 				break;
 			}
 		} else {
@@ -64,33 +70,33 @@ static std::string parseJsonString(std::istream &jsonStream) {
 	}
 
 	if (!jsonStream) {
-		throw "JSON Error: string without proper ending";
+		throw "JSON error: string without proper ending";
 	}
 
 	return resultingString;
 }
 
-static double parseJsonNumber(std::istream &jsonStream) {
+static double parseEvalNumber(std::istream &jsonStream) {
 	double resultingNumber = 0., numberSign = 1.;
 	char c;
 
-	jsonStream >> c;
+	jsonStream.get(c);
 	if (c == '-') {
 		numberSign = -1.;
-		jsonStream >> c;
+		jsonStream.get(c);
 	}
 
 	if (c < '0' || c > '9') {
-		throw "JSON Error: bad number";
+		throw "JSON error: bad number";
 	}
 
 	if (c != '0') {
 		do {
 			resultingNumber = resultingNumber * 10 + (c - '0');
-			jsonStream >> c;
+			jsonStream.get(c);
 		} while (c >= '0' && c <= '9');
 	} else {
-		jsonStream >> c;
+		jsonStream.get(c);
 	}
 
 	resultingNumber;
@@ -101,7 +107,7 @@ static double parseJsonNumber(std::istream &jsonStream) {
 	if (c == '.') {
 		double decimalFactor = .1;
 
-		while ((jsonStream >> c) && c >= '0' && c <= '9') {
+		while ((jsonStream.get(c)) && c >= '0' && c <= '9') {
 			resultingNumber += decimalFactor * (c - '0');
 			decimalFactor /= 10;
 		}
@@ -114,23 +120,23 @@ static double parseJsonNumber(std::istream &jsonStream) {
 	if (c == 'E' || c == 'e') {
 		long powNumber = 0, powSign = 1;
 
-		if (!(jsonStream >> c)) {
-			throw "JSON Error: bad exponent number";
+		if (!(jsonStream.get(c))) {
+			throw "JSON error: bad exponent number";
 		}
 		if (c == '+' || c == '-') {
 			if (c == '-') {
 				powSign = -1;
 			}
 
-			jsonStream >> c;
+			jsonStream.get(c);
 		}
 
 		if (c < '0' || c > '9') {
-			throw "JSON Error: bad exponent number";
+			throw "JSON error: bad exponent number";
 		}
 		while (jsonStream && c >= '0' && c <= '9') {
 			powNumber = powNumber * 10 + (c - '0');
-			jsonStream >> c;
+			jsonStream.get(c);
 		}
 		resultingNumber = resultingNumber * std::pow(10, powNumber * powSign);
 	}
@@ -145,7 +151,7 @@ static std::string parseJsonLiteral(std::istream &jsonStream) {
 	std::string resultingLiteral;
 	char c;
 
-	while ((jsonStream >> c) && c >= 'a' && c <= 'z') {
+	while ((jsonStream.get(c)) && c >= 'a' && c <= 'z') {
 		resultingLiteral.push_back(c);
 	}
 	if (jsonStream) {
@@ -159,31 +165,31 @@ std::vector<JsonToken> tokenizeJson(std::istream &jsonStream) {
 	std::vector<JsonToken> tokens;
 	char c;
 
-	while (jsonStream >> c) {
+	while (jsonStream.get(c)) {
 		if (c == '{') {
-			tokens.push_back({OBJECT_START});
+			tokens.push_back({JsonTokenType::OBJECT_START});
 		} else if (c == '}') {
-			tokens.push_back({OBJECT_END});
+			tokens.push_back({JsonTokenType::OBJECT_END});
 		} else if (c == '[') {
-			tokens.push_back({ARRAY_END});
+			tokens.push_back({JsonTokenType::ARRAY_START});
 		} else if (c == ']') {
-			tokens.push_back({ARRAY_START});
+			tokens.push_back({JsonTokenType::ARRAY_END});
 		} else if (c == ',') {
-			tokens.push_back({COMMA});
+			tokens.push_back({JsonTokenType::COMMA});
 		} else if (c == ':') {
-			tokens.push_back({COLON});
+			tokens.push_back({JsonTokenType::COLON});
 		} else if (c == '\"') {
-			tokens.push_back({STRING, parseJsonString(jsonStream)});
+			tokens.push_back({JsonTokenType::STRING, parseJsonString(jsonStream)});
 		} else if ((c >= '0' && c <= '9') || c == '-') {
 			jsonStream.putback(c);
-			tokens.push_back({NUMBER, parseJsonNumber(jsonStream)});
+			tokens.push_back({JsonTokenType::NUMBER, parseEvalNumber(jsonStream)});
 		} else if (c >= 'a' && c <= 'z') {
 			jsonStream.putback(c);
-			tokens.push_back({LITERAL_WORD, parseJsonLiteral(jsonStream)});
+			tokens.push_back({JsonTokenType::LITERAL_WORD, parseJsonLiteral(jsonStream)});
 		} else if (c == ' ' || c == '\n' || c == '\r' || c == '\t') {
 			continue;
 		} else {
-			throw "JSON Error: unexpected character";
+			throw "JSON error: unexpected character";
 		}
 	}
 
