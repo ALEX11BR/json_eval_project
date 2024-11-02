@@ -28,12 +28,12 @@ static JsonAstNode tokenToItemNode(const JsonToken &token) {
 	throw "Unexpected JSON token";
 }
 
-AstNodeAcceptStatus JsonAstNode::acceptToken(const JsonToken &token) {
+JsonAstNodeAction JsonAstNode::acceptToken(const JsonToken &token) {
 	switch (type) {
 	case JsonAstNodeType::ROOT:
 		if (children.empty()) {
 			children.push_back(tokenToItemNode(token));
-			return AstNodeAcceptStatus::GOTO_CHILD;
+			return JsonAstNodeAction::GOTO_CHILD;
 		}
 		throw "Unexpected item";
 		break;
@@ -41,20 +41,20 @@ AstNodeAcceptStatus JsonAstNode::acceptToken(const JsonToken &token) {
 		if (inInitialState) {
 			if (token.type == JsonTokenType::ARRAY_END) {
 				if (children.empty()) {
-					return AstNodeAcceptStatus::GOTO_PARENT;
+					return JsonAstNodeAction::GOTO_PARENT;
 				}
 				throw "Unexpected array end";
 			}
 			children.push_back(tokenToItemNode(token));
 			inInitialState = false;
-			return AstNodeAcceptStatus::GOTO_CHILD;
+			return JsonAstNodeAction::GOTO_CHILD;
 		} else {
 			if (token.type == JsonTokenType::COMMA) {
 				inInitialState = true;
-				return AstNodeAcceptStatus::STAY;
+				return JsonAstNodeAction::STAY;
 			}
 			if (token.type == JsonTokenType::ARRAY_END) {
-				return AstNodeAcceptStatus::GOTO_PARENT;
+				return JsonAstNodeAction::GOTO_PARENT;
 			}
 			throw "Expected comma to separate array elements";
 		}
@@ -65,33 +65,33 @@ AstNodeAcceptStatus JsonAstNode::acceptToken(const JsonToken &token) {
 				throw "Expected colon to separate values from object keys";
 			}
 			inInitialState = false;
-			return AstNodeAcceptStatus::STAY;
+			return JsonAstNodeAction::STAY;
 		} else {
 			children.push_back(tokenToItemNode(token));
-			return AstNodeAcceptStatus::GOTO_CHILD;
+			return JsonAstNodeAction::GOTO_CHILD;
 		}
 		break;
 	case JsonAstNodeType::OBJECT:
 		if (inInitialState) {
 			if (token.type == JsonTokenType::OBJECT_END) {
 				if (children.empty()) {
-					return AstNodeAcceptStatus::GOTO_PARENT;
+					return JsonAstNodeAction::GOTO_PARENT;
 				}
 				throw "Unexpected object end";
 			}
 			if (token.type == JsonTokenType::STRING) {
 				children.push_back({JsonAstNodeType::OBJECT_KEY, std::get<std::string>(token.value)});
 				inInitialState = false;
-				return AstNodeAcceptStatus::GOTO_CHILD;
+				return JsonAstNodeAction::GOTO_CHILD;
 			}
 			throw "Unsupported key";
 		} else {
 			if (token.type == JsonTokenType::COMMA) {
 				inInitialState = true;
-				return AstNodeAcceptStatus::STAY;
+				return JsonAstNodeAction::STAY;
 			}
 			if (token.type == JsonTokenType::OBJECT_END) {
-				return AstNodeAcceptStatus::GOTO_PARENT;
+				return JsonAstNodeAction::GOTO_PARENT;
 			}
 			throw "Expected comma to separate object members";
 		}
@@ -120,13 +120,13 @@ JsonAstNode parseJsonTokens(const std::vector<JsonToken> &tokens) {
 	std::vector<JsonAstNode *> nodeStack = {&rootNode};
 
 	for (const auto &token : tokens) {
-		AstNodeAcceptStatus action = nodeStack.back()->acceptToken(token);
-		if (action == AstNodeAcceptStatus::GOTO_CHILD) {
+		JsonAstNodeAction action = nodeStack.back()->acceptToken(token);
+		if (action == JsonAstNodeAction::GOTO_CHILD) {
 			JsonAstNode &latestChild = nodeStack.back()->children.back();
 			if (latestChild.acceptsChildren()) {
 				nodeStack.push_back(&latestChild);
 			}
-		} else if (action == AstNodeAcceptStatus::GOTO_PARENT) {
+		} else if (action == JsonAstNodeAction::GOTO_PARENT) {
 			if (nodeStack.back()->type == JsonAstNodeType::OBJECT) {
 				auto &children = nodeStack.back()->children;
 				std::stable_sort(children.begin(), children.end(), [](const JsonAstNode &a, const JsonAstNode &b) {

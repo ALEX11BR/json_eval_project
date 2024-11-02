@@ -13,7 +13,7 @@ static unsigned char charToHex(char c) {
 		return 10 + (c - 'a');
 	}
 
-	throw "JSON error: bad hex digit";
+	throw "bad hex digit";
 }
 
 static std::string parseJsonString(std::istream &jsonStream) {
@@ -58,10 +58,10 @@ static std::string parseJsonString(std::istream &jsonStream) {
 				if (hexNumber >= 0x80) {
 					throw "Non-ASCII hex string escapes are not supported.";
 				}
-				resultingString.push_back((char) hexNumber);
+				resultingString.push_back((char)hexNumber);
 				break;
 			default:
-				throw "JSON error: bad escape char";
+				throw "bad escape char";
 				break;
 			}
 		} else {
@@ -70,7 +70,7 @@ static std::string parseJsonString(std::istream &jsonStream) {
 	}
 
 	if (!jsonStream) {
-		throw "JSON error: string without proper ending";
+		throw "string without proper ending";
 	}
 
 	return resultingString;
@@ -87,7 +87,7 @@ static double parseEvalNumber(std::istream &jsonStream) {
 	}
 
 	if (c < '0' || c > '9') {
-		throw "JSON error: bad number";
+		throw "bad number";
 	}
 
 	if (c != '0') {
@@ -121,7 +121,7 @@ static double parseEvalNumber(std::istream &jsonStream) {
 		long powNumber = 0, powSign = 1;
 
 		if (!(jsonStream.get(c))) {
-			throw "JSON error: bad exponent number";
+			throw "bad exponent number";
 		}
 		if (c == '+' || c == '-') {
 			if (c == '-') {
@@ -132,7 +132,7 @@ static double parseEvalNumber(std::istream &jsonStream) {
 		}
 
 		if (c < '0' || c > '9') {
-			throw "JSON error: bad exponent number";
+			throw "bad exponent number";
 		}
 		while (jsonStream && c >= '0' && c <= '9') {
 			powNumber = powNumber * 10 + (c - '0');
@@ -189,7 +189,7 @@ std::vector<JsonToken> tokenizeJson(std::istream &jsonStream) {
 		} else if (c == ' ' || c == '\n' || c == '\r' || c == '\t') {
 			continue;
 		} else {
-			throw "JSON error: unexpected character";
+			throw "unexpected character";
 		}
 	}
 

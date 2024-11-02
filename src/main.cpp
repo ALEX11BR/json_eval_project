@@ -1,67 +1,57 @@
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "eval-lexer.h"
+#include "eval-parser.h"
 #include "json-lexer.h"
 #include "json-parser.h"
+#include "print.h"
 
-void printJson(const JsonAstNode &ast, std::ostream &outputStream) {
-	switch (ast.type) {
-	case JsonAstNodeType::OBJECT:
-		outputStream << "{ ";
-		break;
-	case JsonAstNodeType::ARRAY:
-		outputStream << "[ ";
-		break;
-	case JsonAstNodeType::STRING:
-		outputStream << "\"" << std::get<std::string>(ast.data) << "\"";
-		break;
-	case JsonAstNodeType::NUMBER:
-		outputStream << std::get<double>(ast.data);
-		break;
-	case JsonAstNodeType::BOOLEAN_TRUE:
-		outputStream << "true";
-		break;
-	case JsonAstNodeType::BOOLEAN_FALSE:
-		outputStream << "false";
-		break;
-	case JsonAstNodeType::OBJECT_KEY:
-		outputStream << "\"" << std::get<std::string>(ast.data) << "\": ";
-		break;
-	case JsonAstNodeType::NULL_OBJECT:
-		outputStream << "null";
-		break;
-	}
+int main(int argc, char **argv) {
+	std::vector<JsonToken> jsonTokens;
+	JsonAstNode jsonAst;
+	std::vector<EvalToken> evalTokens;
+	EvalAstNode evalAst;
 
-	for (unsigned int i = 0; i < ast.children.size(); i++) {
-		if (i > 0) {
-			outputStream << ", ";
-		}
-		printJson(ast.children[i], outputStream);
-	}
-
-	switch (ast.type) {
-	case JsonAstNodeType::OBJECT:
-		outputStream << " }";
-		break;
-	case JsonAstNodeType::ARRAY:
-		outputStream << " ]";
-		break;
-	}
-}
-
-int main() {
-	try {
-		std::vector<JsonToken> tokens = tokenizeJson(std::cin);
-		JsonAstNode jsonAst = parseJsonTokens(tokens);
-		printJson(jsonAst, std::cout);
-	} catch (char const *errText) {
-		std::cerr << errText << std::endl;
+	if (argc != 3) {
+		std::cerr << "Usage: ./json_eval file.json 'string[2].eval'\n";
 		return 1;
 	}
+
+	try {
+		std::ifstream inputFile(argv[1]);
+		jsonTokens = tokenizeJson(inputFile);
+	} catch (char const *errText) {
+		std::cerr << "Json tokenization error: " << errText << std::endl;
+		return 1;
+	}
+	try {
+		jsonAst = parseJsonTokens(jsonTokens);
+	} catch (char const *errText) {
+		std::cerr << "Json parsing error: " << errText << std::endl;
+		return 1;
+	}
+	try {
+		std::stringstream evalArg(argv[2]);
+		evalTokens = tokenizeEval(evalArg);
+	} catch (char const *errText) {
+		std::cerr << "Eval tokenization error: " << errText << std::endl;
+		return 1;
+	}
+	try {
+		evalAst = parseEvalTokens(evalTokens);
+	} catch (char const *errText) {
+		std::cerr << "Eval parsing error: " << errText << std::endl;
+		return 1;
+	}
+
+	printJson(jsonAst, std::cout);
+	debugEval(evalAst, 0);
 
 	return 0;
 }

@@ -4,8 +4,13 @@
 #include <variant>
 #include <vector>
 
-#include "common-parser.h"
 #include "json-lexer.h"
+
+enum class JsonAstNodeAction {
+	GOTO_CHILD,  // A new AST child node was added, go to it
+	GOTO_PARENT, // The AST node desn't accept tokens anymore, go to its parent
+	STAY         // Keep processing the current AST node in stack
+};
 
 enum class JsonAstNodeType {
 	ROOT,
@@ -25,7 +30,7 @@ struct JsonAstNode {
 	std::vector<JsonAstNode> children;
 	bool inInitialState = true;
 
-	AstNodeAcceptStatus acceptToken(const JsonToken &token);
+	JsonAstNodeAction acceptToken(const JsonToken &token);
 	bool acceptsChildren() const;
 	bool isSkipNode() const;
 };
