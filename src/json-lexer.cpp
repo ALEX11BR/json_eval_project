@@ -93,13 +93,11 @@ static double parseEvalNumber(std::istream &jsonStream) {
 	if (c != '0') {
 		do {
 			resultingNumber = resultingNumber * 10 + (c - '0');
-			jsonStream.get(c);
-		} while (c >= '0' && c <= '9');
+		} while (jsonStream.get(c) && c >= '0' && c <= '9');
 	} else {
 		jsonStream.get(c);
 	}
 
-	resultingNumber;
 	if (!jsonStream) {
 		return resultingNumber * numberSign;
 	}

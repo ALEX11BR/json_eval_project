@@ -19,13 +19,11 @@ static double parseEvalNumber(std::istream &evalStream) {
 	if (c != '0') {
 		do {
 			resultingNumber = resultingNumber * 10 + (c - '0');
-			evalStream.get(c);
-		} while (c >= '0' && c <= '9');
+		} while (evalStream.get(c) && c >= '0' && c <= '9');
 	} else {
 		evalStream.get(c);
 	}
 
-	resultingNumber;
 	if (!evalStream) {
 		return resultingNumber * numberSign;
 	}

@@ -1,9 +1,10 @@
+#include <cstdlib>
 #include <fstream>
+#include <future>
 #include <iostream>
-#include <map>
-#include <memory>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "eval-lexer.h"
@@ -12,17 +13,36 @@
 #include "json-parser.h"
 #include "print.h"
 
-int main(int argc, char **argv) {
-	std::vector<JsonToken> jsonTokens;
-	JsonAstNode jsonAst;
+void evalParseThread(std::promise<EvalAstNode> evalAst, const std::string &evalStr) {
 	std::vector<EvalToken> evalTokens;
-	EvalAstNode evalAst;
 
+	try {
+		std::stringstream evalArg(evalStr);
+		evalTokens = tokenizeEval(evalArg);
+	} catch (char const *errText) {
+		std::cerr << "Eval tokenization error: " << errText << std::endl;
+		std::exit(1);
+	}
+	try {
+		evalAst.set_value(parseEvalTokens(evalTokens));
+	} catch (char const *errText) {
+		std::cerr << "Eval parsing error: " << errText << std::endl;
+		std::exit(1);
+	}
+}
+
+int main(int argc, char **argv) {
 	if (argc != 3) {
 		std::cerr << "Usage: ./json_eval file.json 'string[2].eval'\n";
 		return 1;
 	}
 
+	std::promise<EvalAstNode> evalAstPromise;
+	std::future<EvalAstNode> evalAstFuture = evalAstPromise.get_future();
+	std::thread evalThread(evalParseThread, std::move(evalAstPromise), std::string(argv[2]));
+
+	std::vector<JsonToken> jsonTokens;
+	JsonAstNode jsonAst;
 	try {
 		std::ifstream inputFile(argv[1]);
 		jsonTokens = tokenizeJson(inputFile);
@@ -36,19 +56,9 @@ int main(int argc, char **argv) {
 		std::cerr << "Json parsing error: " << errText << std::endl;
 		return 1;
 	}
-	try {
-		std::stringstream evalArg(argv[2]);
-		evalTokens = tokenizeEval(evalArg);
-	} catch (char const *errText) {
-		std::cerr << "Eval tokenization error: " << errText << std::endl;
-		return 1;
-	}
-	try {
-		evalAst = parseEvalTokens(evalTokens);
-	} catch (char const *errText) {
-		std::cerr << "Eval parsing error: " << errText << std::endl;
-		return 1;
-	}
+	evalThread.join();
+
+	EvalAstNode evalAst = evalAstFuture.get();
 
 	printJson(jsonAst, std::cout);
 	debugEval(evalAst, 0);
