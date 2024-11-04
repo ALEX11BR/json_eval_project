@@ -9,6 +9,7 @@
 
 #include "eval-lexer.h"
 #include "eval-parser.h"
+#include "evaluate.h"
 #include "json-lexer.h"
 #include "json-parser.h"
 #include "print.h"
@@ -60,8 +61,13 @@ int main(int argc, char **argv) {
 
 	EvalAstNode evalAst = evalAstFuture.get();
 
-	printJson(jsonAst, std::cout);
-	debugEval(evalAst, 0);
+	try {
+		printJson(evaluate(evalAst, jsonAst, jsonAst), std::cout);
+		std::cout << '\n';
+	} catch (char const *errText) {
+		std::cerr << "Evaluation error: " << errText << std::endl;
+		return 1;
+	}
 
 	return 0;
 }
