@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include "app-exception.h"
+
 static double parseEvalNumber(std::istream &evalStream) {
 	double resultingNumber = 0., numberSign = 1.;
 	char c;
@@ -13,7 +15,7 @@ static double parseEvalNumber(std::istream &evalStream) {
 	}
 
 	if (c < '0' || c > '9') {
-		throw "Eval error: bad number";
+		throw AppException("Eval error: bad number");
 	}
 
 	if (c != '0') {
@@ -45,7 +47,7 @@ static double parseEvalNumber(std::istream &evalStream) {
 		long powNumber = 0, powSign = 1;
 
 		if (!(evalStream.get(c))) {
-			throw "Eval string error: bad exponent number";
+			throw AppException("Eval string error: bad exponent number");
 		}
 		if (c == '+' || c == '-') {
 			if (c == '-') {
@@ -56,7 +58,7 @@ static double parseEvalNumber(std::istream &evalStream) {
 		}
 
 		if (c < '0' || c > '9') {
-			throw "Eval string error: bad exponent number";
+			throw AppException("Eval string error: bad exponent number");
 		}
 		while (evalStream && c >= '0' && c <= '9') {
 			powNumber = powNumber * 10 + (c - '0');
@@ -115,7 +117,7 @@ std::vector<EvalToken> tokenizeEval(std::istream &evalStream) {
 		} else if (c == ' ' || c == '\n' || c == '\r' || c == '\t') {
 			continue;
 		} else {
-			throw "Eval string error: unexpected character";
+			throw AppException("Eval string error: unexpected character");
 		}
     }
 

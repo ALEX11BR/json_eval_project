@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include "app-exception.h"
+
 static unsigned char charToHex(char c) {
 	if (c >= '0' && c <= '9') {
 		return c - '0';
@@ -13,7 +15,7 @@ static unsigned char charToHex(char c) {
 		return 10 + (c - 'a');
 	}
 
-	throw "bad hex digit";
+	throw AppException("bad hex digit");
 }
 
 static std::string parseJsonString(std::istream &jsonStream) {
@@ -56,12 +58,12 @@ static std::string parseJsonString(std::istream &jsonStream) {
 					hexNumber = (hexNumber << 4) + charToHex(c);
 				}
 				if (hexNumber >= 0x80) {
-					throw "Non-ASCII hex string escapes are not supported.";
+					throw AppException("Non-ASCII hex string escapes are not supported.");
 				}
 				resultingString.push_back((char)hexNumber);
 				break;
 			default:
-				throw "bad escape char";
+				throw AppException("bad escape char");
 				break;
 			}
 		} else {
@@ -70,7 +72,7 @@ static std::string parseJsonString(std::istream &jsonStream) {
 	}
 
 	if (!jsonStream) {
-		throw "string without proper ending";
+		throw AppException("string without proper ending");
 	}
 
 	return resultingString;
@@ -87,7 +89,7 @@ static double parseEvalNumber(std::istream &jsonStream) {
 	}
 
 	if (c < '0' || c > '9') {
-		throw "bad number";
+		throw AppException("bad number");
 	}
 
 	if (c != '0') {
@@ -119,7 +121,7 @@ static double parseEvalNumber(std::istream &jsonStream) {
 		long powNumber = 0, powSign = 1;
 
 		if (!(jsonStream.get(c))) {
-			throw "bad exponent number";
+			throw AppException("bad exponent number");
 		}
 		if (c == '+' || c == '-') {
 			if (c == '-') {
@@ -130,7 +132,7 @@ static double parseEvalNumber(std::istream &jsonStream) {
 		}
 
 		if (c < '0' || c > '9') {
-			throw "bad exponent number";
+			throw AppException("bad exponent number");
 		}
 		while (jsonStream && c >= '0' && c <= '9') {
 			powNumber = powNumber * 10 + (c - '0');
@@ -187,7 +189,7 @@ std::vector<JsonToken> tokenizeJson(std::istream &jsonStream) {
 		} else if (c == ' ' || c == '\n' || c == '\r' || c == '\t') {
 			continue;
 		} else {
-			throw "unexpected character";
+			throw AppException("unexpected character");
 		}
 	}
 

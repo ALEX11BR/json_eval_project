@@ -3,6 +3,8 @@
 #include <iostream>
 #include "print.h"
 
+#include "app-exception.h"
+
 static EvalAstNode tokenToItemNode(const EvalToken &token) {
 	switch (token.type) {
 	case EvalTokenType::IDENTIFIER:
@@ -10,7 +12,7 @@ static EvalAstNode tokenToItemNode(const EvalToken &token) {
 	case EvalTokenType::NUMBER:
 		return {EvalAstNodeType::NUMBER, std::get<double>(token.value)};
 	}
-	throw "Expected an item";
+	throw AppException("Expected an item");
 }
 
 static EvalAstNode tokenToItemFunction(const EvalToken &token) {
@@ -22,7 +24,7 @@ static EvalAstNode tokenToItemFunction(const EvalToken &token) {
 	case EvalTokenType::FUNCTION_CALL_START:
 		return {EvalAstNodeType::FUNCTION_CALL, 0.};
 	}
-	throw "Expected an operator";
+	throw AppException("Expected an operator");
 }
 
 EvalAstNodeAction EvalAstNode::acceptToken(const EvalToken &token) {
@@ -32,7 +34,7 @@ EvalAstNodeAction EvalAstNode::acceptToken(const EvalToken &token) {
 			children.push_back(tokenToItemNode(token));
 			return EvalAstNodeAction::GOTO_CHILD;
 		}
-		throw "Unexpected item";
+		throw AppException("Unexpected item");
 		break;
 	case EvalAstNodeType::IDENTIFIER:
 		switch (token.type) {
@@ -46,7 +48,7 @@ EvalAstNodeAction EvalAstNode::acceptToken(const EvalToken &token) {
 		{
 			EvalAstNode acceptedFunction = tokenToItemFunction(token);
 			if (!children.empty() && acceptedFunction.type == EvalAstNodeType::FUNCTION_CALL) {
-				throw "Unexpected function call";
+				throw AppException("Unexpected function call");
 			}
 			children.push_back(acceptedFunction);
 		}
@@ -57,27 +59,27 @@ EvalAstNodeAction EvalAstNode::acceptToken(const EvalToken &token) {
 		}
 		if (token.type == EvalTokenType::COMMA) {
 			if (std::get<double>(value) == 0.) {
-				throw "Unexpected comma in function call";
+				throw AppException("Unexpected comma in function call");
 			}
 			value = 0.;
 			return EvalAstNodeAction::STAY;
 		}
 		if (std::get<double>(value) == 1.) {
-			throw "Expected comma to separate function arguments";
+			throw AppException("Expected comma to separate function arguments");
 		}
 		value = 1.;
 		children.push_back(tokenToItemNode(token));
 		return EvalAstNodeAction::GOTO_CHILD;
 	case EvalAstNodeType::OBJECT_INDEX:
 		if (token.type != EvalTokenType::IDENTIFIER) {
-			throw "Unexpected key";
+			throw AppException("Unexpected key");
 		}
 		children.push_back(tokenToItemNode(token));
 		return EvalAstNodeAction::GOTO_CHILD;
 	case EvalAstNodeType::ARRAY_INDEX:
 		if (token.type == EvalTokenType::INDEXING_END) {
 			if (children.empty()) {
-				throw "Empty array indexing is not allowed";
+				throw AppException("Empty array indexing is not allowed");
 			}
 			return EvalAstNodeAction::GOTO_PARENT;
 		}
@@ -91,10 +93,10 @@ EvalAstNodeAction EvalAstNode::acceptToken(const EvalToken &token) {
 		case EvalTokenType::INDEXING_END:
 			return EvalAstNodeAction::UPTO_ARRAY_INDEX;
 		}
-		throw "Unexpected operation on a number";
+		throw AppException("Unexpected operation on a number");
 		break;
 	}
-	throw "Unexpected situation";
+	throw AppException("Unexpected situation");
 }
 
 EvalAstNode parseEvalTokens(const std::vector<EvalToken> &tokens) {
@@ -117,7 +119,7 @@ EvalAstNode parseEvalTokens(const std::vector<EvalToken> &tokens) {
 				while (nodeStack.back()->type != EvalAstNodeType::ARRAY_INDEX) {
 					if (nodeStack.back()->type == EvalAstNodeType::FUNCTION_CALL ||
 					    nodeStack.back()->type == EvalAstNodeType::ROOT) {
-						throw "Unexpected array index end";
+						throw AppException("Unexpected array index end");
 					}
 					nodeStack.pop_back();
 				}
@@ -127,7 +129,7 @@ EvalAstNode parseEvalTokens(const std::vector<EvalToken> &tokens) {
 				while (nodeStack.back()->type != EvalAstNodeType::FUNCTION_CALL) {
 					if (nodeStack.back()->type == EvalAstNodeType::ARRAY_INDEX ||
 					    nodeStack.back()->type == EvalAstNodeType::ROOT) {
-						throw "Unexpected function call end";
+						throw AppException("Unexpected function call end");
 					}
 					nodeStack.pop_back();
 				}
@@ -138,18 +140,18 @@ EvalAstNode parseEvalTokens(const std::vector<EvalToken> &tokens) {
 	}
 
 	if (nodeStack.back()->type == EvalAstNodeType::OBJECT_INDEX) {
-		throw "Unfinished object index";
+		throw AppException("Unfinished object index");
 	}
 	while (!nodeStack.empty()) {
 		if (nodeStack.back()->type == EvalAstNodeType::FUNCTION_CALL ||
 		    nodeStack.back()->type == EvalAstNodeType::ARRAY_INDEX) {
-			throw "Unclosed bracket";
+			throw AppException("Unclosed bracket");
 		}
 		nodeStack.pop_back();
 	}
 
 	if (rootNode.children.empty()) {
-		throw "Nothing specified";
+		throw AppException("Nothing specified");
 	}
 	return std::move(rootNode.children.front());
 }

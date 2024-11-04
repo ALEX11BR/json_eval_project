@@ -1,6 +1,7 @@
 #include "print.h"
 
 #include <iostream>
+#include <variant>
 
 void printJson(const JsonAstNode &ast, std::ostream &outputStream) {
 	switch (ast.type) {
@@ -47,24 +48,40 @@ void printJson(const JsonAstNode &ast, std::ostream &outputStream) {
 	}
 }
 
-void debugEval(const EvalAstNode &ast, int level = 0) {
+void printToUser(const JsonAstNode &ast, std::ostream &outputStream) {
+	switch (ast.type) {
+	case JsonAstNodeType::STRING:
+		outputStream << std::get<std::string>(ast.data);
+		break;
+	case JsonAstNodeType::NUMBER:
+		outputStream << std::get<double>(ast.data);
+		break;
+	default:
+		printJson(ast, outputStream);
+		break;
+	}
+}
+
+void debugEval(const EvalAstNode &ast, std::ostream &outputStream, int level = 0) {
 	for (int i = 0; i < level; i++) {
-		std::cout << '>';
+		outputStream << ">";
 	}
 
-	std::cout << (int)ast.type;
+	outputStream << (int)ast.type;
 
-	try {
-		std::cout << " " << std::get<std::string>(ast.value);
-	} catch (...) {
+	const std::string *str = std::get_if<std::string>(&ast.value);
+	if (str != NULL) {
+		outputStream << " " << *str;
 	}
-	try {
-		std::cout << " " << std::get<double>(ast.value);
-	} catch (...) {
+
+	const double *num = std::get_if<double>(&ast.value);
+	if (num != NULL) {
+		outputStream << " " << *num;
 	}
-	std::cout << "\n";
+
+	outputStream << "\n";
 
 	for (const auto &c : ast.children) {
-		debugEval(c, level + 1);
+		debugEval(c, outputStream, level + 1);
 	}
 }

@@ -7,6 +7,7 @@
 #include <thread>
 #include <vector>
 
+#include "app-exception.h"
 #include "eval-lexer.h"
 #include "eval-parser.h"
 #include "evaluate.h"
@@ -20,14 +21,14 @@ void evalParseThread(std::promise<EvalAstNode> evalAst, const std::string &evalS
 	try {
 		std::stringstream evalArg(evalStr);
 		evalTokens = tokenizeEval(evalArg);
-	} catch (char const *errText) {
-		std::cerr << "Eval tokenization error: " << errText << std::endl;
+	} catch (const std::exception &err) {
+		std::cerr << "Eval tokenization error: " << err.what() << std::endl;
 		std::exit(1);
 	}
 	try {
 		evalAst.set_value(parseEvalTokens(evalTokens));
-	} catch (char const *errText) {
-		std::cerr << "Eval parsing error: " << errText << std::endl;
+	} catch (const std::exception &err) {
+		std::cerr << "Eval parsing error: " << err.what() << std::endl;
 		std::exit(1);
 	}
 }
@@ -47,14 +48,14 @@ int main(int argc, char **argv) {
 	try {
 		std::ifstream inputFile(argv[1]);
 		jsonTokens = tokenizeJson(inputFile);
-	} catch (char const *errText) {
-		std::cerr << "Json tokenization error: " << errText << std::endl;
+	} catch (const std::exception &err) {
+		std::cerr << "Json tokenization error: " << err.what() << std::endl;
 		return 1;
 	}
 	try {
 		jsonAst = parseJsonTokens(jsonTokens);
-	} catch (char const *errText) {
-		std::cerr << "Json parsing error: " << errText << std::endl;
+	} catch (const std::exception &err) {
+		std::cerr << "Json parsing error: " << err.what() << std::endl;
 		return 1;
 	}
 	evalThread.join();
@@ -62,10 +63,10 @@ int main(int argc, char **argv) {
 	EvalAstNode evalAst = evalAstFuture.get();
 
 	try {
-		printJson(evaluate(evalAst, jsonAst, jsonAst), std::cout);
-		std::cout << '\n';
-	} catch (char const *errText) {
-		std::cerr << "Evaluation error: " << errText << std::endl;
+		printToUser(evaluate(evalAst, jsonAst, jsonAst), std::cout);
+		std::cout << "\n";
+	} catch (const std::exception &err) {
+		std::cerr << "Evaluation error: " << err.what() << std::endl;
 		return 1;
 	}
 

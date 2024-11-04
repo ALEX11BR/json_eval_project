@@ -4,6 +4,8 @@
 #include <numeric>
 #include <vector>
 
+#include "app-exception.h"
+
 JsonAstNode evaluate(const EvalAstNode &evalAst, const JsonAstNode &jsonAst, const JsonAstNode &jsonRoot) {
 	switch (evalAst.type) {
 	case EvalAstNodeType::NUMBER:
@@ -16,7 +18,7 @@ JsonAstNode evaluate(const EvalAstNode &evalAst, const JsonAstNode &jsonAst, con
 			}
 			if (std::get<std::string>(evalAst.value) == "size") {
 				if (arguments.size() != 1) {
-					throw "Invalid arguments for function 'size'";
+					throw AppException("Invalid arguments for function 'size'");
 				}
 				switch (arguments.front().type) {
 				case JsonAstNodeType::ARRAY:
@@ -32,7 +34,7 @@ JsonAstNode evaluate(const EvalAstNode &evalAst, const JsonAstNode &jsonAst, con
 					}
 				}
 				if (arguments.empty()) {
-					throw "Function can't work with no arguments";
+					throw AppException("Function can't work with no arguments");
 				}
 
 				if (std::get<std::string>(evalAst.value) == "max") {
@@ -60,18 +62,18 @@ JsonAstNode evaluate(const EvalAstNode &evalAst, const JsonAstNode &jsonAst, con
 					return {JsonAstNodeType::NUMBER, ans};
 				}
 			}
-			throw "Invalid function";
+			throw AppException("Invalid function");
 		}
 
 		if (jsonAst.type != JsonAstNodeType::OBJECT) {
-			throw "Can't access object from key";
+			throw AppException("Can't access object from key");
 		}
 
 		auto object = std::lower_bound(
 		    jsonAst.children.begin(), jsonAst.children.end(), std::get<std::string>(evalAst.value),
 		    [](const JsonAstNode &node, const std::string &str) { return std::get<std::string>(node.data) < str; });
 		if (object == jsonAst.children.end() || object->data != evalAst.value) {
-			throw "Object does not have the specified index";
+			throw AppException("Object does not have the specified index");
 		}
 
 		if (evalAst.children.empty()) {
@@ -82,26 +84,26 @@ JsonAstNode evaluate(const EvalAstNode &evalAst, const JsonAstNode &jsonAst, con
 		for (const auto &operation : evalAst.children) {
 			if (operation.type == EvalAstNodeType::ARRAY_INDEX) {
 				if (obj.type != JsonAstNodeType::ARRAY) {
-					throw "Can't do an array index from a non-array";
+					throw AppException("Can't do an array index from a non-array");
 				}
 
 				JsonAstNode indexNode = evaluate(evalAst.children.front().children[0], jsonRoot, jsonRoot);
 				if (indexNode.type != JsonAstNodeType::NUMBER) {
-					throw "Bad array index type";
+					throw AppException("Bad array index type");
 				}
 				int index = std::get<double>(indexNode.data);
 				if (index < 0 || index >= (int)obj.children.size()) {
-					throw "Array index out of bounds";
+					throw AppException("Array index out of bounds");
 				}
 
 				obj = obj.children[index];
 			} else if (operation.type == EvalAstNodeType::OBJECT_INDEX) {
 				obj = evaluate(operation.children[0], obj, jsonRoot);
 			} else {
-				throw "Unsupported operation";
+				throw AppException("Unsupported operation");
 			}
 		}
 		return obj;
 	}
-	throw "Invalid eval type";
+	throw AppException("Invalid eval type");
 }
